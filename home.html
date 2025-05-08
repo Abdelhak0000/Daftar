@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>دفتر الديون 📒</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f7fa;
+    }
+    header {
+      background-color: #4a90e2;
+      color: white;
+      padding: 20px;
+      text-align: center;
+      font-size: 24px;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .container {
+      padding: 20px;
+      padding-bottom: 100px;
+    }
+    .top-bar {
+      margin-bottom: 20px;
+    }
+    #searchInput {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    .customer {
+      background: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      word-break: break-word;
+    }
+    .customer strong {
+      color: #333;
+      display: block;
+      margin-bottom: 5px;
+    }
+    .customer button {
+      margin-top: 8px;
+      margin-left: 5px;
+      margin-right: 5px;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-block;
+    }
+    .edit-btn { background-color: #007bff; color: white; }
+    .delete-btn { background-color: #dc3545; color: white; }
+    .pay-btn { background-color: #17a2b8; color: white; }
+    .remind-btn { background-color: #ffc107; color: white; }
+
+    .bottom-bar {
+      position: fixed;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 15px;
+      z-index: 100;
+      justify-content: center;
+    }
+    .floating-btn, .history-btn, .total-btn {
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      font-size: 28px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .floating-btn { background-color: #28a745; }
+
+    #historyScreen {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #f5f7fa;
+      z-index: 200;
+      overflow-y: auto;
+      padding-top: 80px;
+    }
+    .history-header {
+      background-color: #4a90e2;
+      color: white;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: fixed;
+      top: 0;
+      width: 100%;
+      z-index: 210;
+    }
+    .history-header h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+    .history-header .search, .history-header .close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+    }
+    #historyList {
+      padding: 20px;
+    }
+    .history-item {
+      background: white;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
+    @media (max-width: 600px) {
+      header { font-size: 20px; padding: 15px; }
+      .customer { padding: 10px; }
+      .customer button { font-size: 12px; padding: 6px 8px; }
+      .floating-btn, .history-btn, .total-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 22px;
+      }
+    }
+  </style>
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <meta name="theme-color" content="#4CAF50">
+  
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(registration => console.log('ServiceWorker تم تسجيله بنجاح:', registration))
+        .catch(error => console.log('فشل تسجيل ServiceWorker:', error));
+    }
+  </script>
+</head>
+
+<body>
+
+<header>📒 دفتر الديون</header>
+
+<div class="container">
+  <div class="top-bar">
+    <input type="text" id="searchInput" placeholder="🔍 ابحث عن زبون..." onkeyup="searchCustomer()">
+  </div>
+  <div id="customers"></div>
+</div>
+
+<div class="bottom-bar">
+  <button class="history-btn" onclick="showHistoryScreen()">🕒</button>
+  <button class="floating-btn" onclick="addCustomer()">➕</button>
+  <button class="total-btn" onclick="showTotalDebt()">💰</button>
+</div>
+
+<div id="historyScreen">
+  <div class="history-header">
+    <button class="search" onclick="searchInHistory()">🔍</button>
+    <h2>سجل التغييرات</h2>
+    <button class="close" onclick="hideHistoryScreen()">❌</button>
+  </div>
+  <div id="historyList"></div>
+</div>
+
+<script>
+let customers = JSON.parse(localStorage.getItem('customers')) || [];
+let currentHistory = [];
+
+function saveAndDisplay() {
+  localStorage.setItem('customers', JSON.stringify(customers));
+  displayCustomers();
+}
+
+function getCurrentDateTime() {
+  const now = new Date();
+  return now.toLocaleString('fr-FR');
+}
+
+function displayCustomers(filter = '') {
+  const container = document.getElementById('customers');
+  container.innerHTML = '';
+  customers.filter(c => c.name.includes(filter)).forEach((customer, index) => {
+    const div = document.createElement('div');
+    div.className = 'customer';
+    div.innerHTML = `
+      <strong>👤 الاسم:</strong> ${customer.name}
+      <strong>📞 الهاتف:</strong> ${customer.phone || 'لا يوجد'}
+      <strong>💵 الرصيد:</strong> ${customer.amount} د.ج
+      <strong>📅 آخر تحديث:</strong> ${customer.date}
+      <div style="margin-top:10px;">
+        <button class="edit-btn" onclick="editCustomer(${index})">✏️ إضافة</button>
+        <button class="pay-btn" onclick="payCustomer(${index})">💸 دفع</button>
+        <button class="delete-btn" onclick="deleteCustomer(${index})">🗑️ حذف</button>
+        <button class="remind-btn" onclick="sendSMSReminder(${index})">📩 تذكير</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function searchCustomer() {
+  const searchValue = document.getElementById('searchInput').value;
+  displayCustomers(searchValue);
+}
+
+function addCustomer() {
+  const name = prompt('ادخل اسم الزبون:');
+  if (!name) return alert('❌ يجب إدخال اسم!');
+  const phone = prompt('ادخل رقم الهاتف (اختياري):');
+  const amount = parseFloat(prompt('ادخل مبلغ الدين:') || 0);
+  const date = getCurrentDateTime();
+
+  customers.push({ name, phone, amount, date, history: [`إنشاء: ${amount} د.ج في ${date}`] });
+  saveAndDisplay();
+}
+
+function editCustomer(index) {
+  const customer = customers[index];
+  const addAmount = parseFloat(prompt('💵 أضف مبلغ إضافي (أدخل 0 إن لم ترد):') || 0);
+  customer.amount += addAmount;
+  customer.date = getCurrentDateTime();
+  customer.history.push(`زيادة: +${addAmount} د.ج في ${customer.date}`);
+  saveAndDisplay();
+}
+
+function payCustomer(index) {
+  const customer = customers[index];
+  const payAmount = parseFloat(prompt('💵 المبلغ المدفوع:') || 0);
+  customer.amount -= payAmount;
+  customer.date = getCurrentDateTime();
+  customer.history.push(`دفع: -${payAmount} د.ج في ${customer.date}`);
+  saveAndDisplay();
+}
+
+function deleteCustomer(index) {
+  if (confirm('❌ هل أنت متأكد من الحذف؟')) {
+    customers.splice(index, 1);
+    saveAndDisplay();
+  }
+}
+
+function sendSMSReminder(index) {
+  const customer = customers[index];
+  if (!customer.phone) return alert('🚫 لا يوجد رقم هاتف لهذا الزبون.');
+  
+  const message = `مرحبًا ${customer.name}، لديك دين بمقدار ${customer.amount} د.ج. الرجاء التسديد.`;
+  window.open(`sms:${customer.phone}?body=${encodeURIComponent(message)}`);
+}
+
+function showHistoryScreen() {
+  currentHistory = customers.flatMap(c => c.history.map(h => `${c.name}: ${h}`));
+  renderHistory(currentHistory);
+  document.getElementById('historyScreen').style.display = 'block';
+}
+
+function hideHistoryScreen() {
+  document.getElementById('historyScreen').style.display = 'none';
+}
+
+function renderHistory(history) {
+  const list = document.getElementById('historyList');
+  list.innerHTML = '';
+  history.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    div.textContent = item;
+    list.appendChild(div);
+  });
+}
+
+function searchInHistory() {
+  const keyword = prompt('🔍 أدخل كلمة للبحث:');
+  if (keyword) {
+    const filtered = currentHistory.filter(item => item.includes(keyword));
+    renderHistory(filtered);
+  }
+}
+
+function showTotalDebt() {
+  const totalDebt = customers.reduce((sum, c) => sum + c.amount, 0);
+  const customerCount = customers.length;
+  const highest = customers.reduce((max, c) => c.amount > max.amount ? c : max, customers[0] || {name: 'لا يوجد', amount: 0});
+  const lowest = customers.reduce((min, c) => c.amount < min.amount ? c : min, customers[0] || {name: 'لا يوجد', amount: 0});
+
+  alert(`💵 مجموع الديون: ${totalDebt} د.ج\n👥 عدد الزبائن: ${customerCount}\n⬆️ أعلى مدين: ${highest.name} (${highest.amount} د.ج)\n⬇️ أقل مدين: ${lowest.name} (${lowest.amount} د.ج)`);
+}
+
+displayCustomers();
+</script>
+
+</body>
+</html>

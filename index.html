@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>تسجيل الدخول - دفتر الديون</title>
+  <style>
+    body {
+      background-color: #fafafa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      font-family: 'Arial', sans-serif;
+    }
+    .login-wrapper {
+      width: 100%;
+      max-width: 400px;
+      padding: 20px;
+    }
+    .login-box {
+      background-color: #fff;
+      padding: 30px;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+    .app-title {
+      font-size: 28px;
+      font-weight: bold;
+      color: #0d6efd;
+      margin-bottom: 20px;
+    }
+    input[type="email"], input[type="password"] {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background-color: #fafafa;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #0d6efd;
+      color: white;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #084298;
+    }
+    .register-btn {
+      background-color: #42b72a;
+    }
+    .register-btn:hover {
+      background-color: #2e8b19;
+    }
+    .divider-text {
+      margin: 15px 0;
+      color: #888;
+      font-size: 14px;
+    }
+    .forgot-password {
+      font-size: 12px;
+      color: #0d6efd;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .forgot-password:hover {
+      text-decoration: underline;
+    }
+    #errorMessage {
+      color: red;
+      margin-top: 10px;
+    }
+  </style>
+
+  <!-- ربط ملف Manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- أيقونة الموقع -->
+  <link rel="icon" href="icons/icon-192.png">
+
+  <!-- لون شريط العنوان -->
+  <meta name="theme-color" content="#4CAF50">
+
+  <!-- تسجيل Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js')
+        .then(function(registration) {
+          console.log('✅ ServiceWorker تم تسجيله بنجاح:', registration);
+        })
+        .catch(function(error) {
+          console.error('❌ فشل تسجيل ServiceWorker:', error);
+        });
+    }
+  </script>
+
+</head>
+
+<body>
+
+<div class="login-wrapper">
+  <div class="login-box">
+    <h1 class="app-title">دفتر الديون</h1>
+
+    <input type="email" id="email" placeholder="البريد الإلكتروني" required>
+    <input type="password" id="password" placeholder="كلمة المرور" required>
+
+    <button id="loginBtn" onclick="login()">تسجيل الدخول</button>
+
+    <p class="divider-text">أو</p>
+
+    <button id="registerBtn" onclick="register()" class="register-btn">إنشاء حساب جديد</button>
+
+    <p id="errorMessage"></p>
+
+    <p class="forgot-password" onclick="forgotPassword()">نسيت كلمة المرور؟</p>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.11/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.6.11/firebase-auth.js";
+
+// إعدادات Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyCNd6iFgQNEmHFOKgWkxytIZh7FRnLck_Q",
+  authDomain: "eldyon-34409.firebaseapp.com",
+  projectId: "eldyon-34409",
+  storageBucket: "eldyon-34409.appspot.com",
+  messagingSenderId: "713185472659",
+  appId: "1:713185472659:web:0cfd3241470189f027dd66",
+  measurementId: "G-0MMT1RXS4Z"
+};
+
+// تهيئة Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+// التحقق من حالة الدخول
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    window.location.href = "home.html";
+  }
+});
+
+// تسجيل الدخول
+window.login = function() {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+
+  signInWithEmailAndPassword(auth, email, password)
+    .then(() => {
+      window.location.href = "home.html";
+    })
+    .catch(() => {
+      document.getElementById('errorMessage').innerText = "⚠️ خطأ: تأكد من البريد وكلمة المرور.";
+    });
+};
+
+// إنشاء حساب
+window.register = function() {
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
+
+  createUserWithEmailAndPassword(auth, email, password)
+    .then(() => {
+      window.location.href = "home.html";
+    })
+    .catch(() => {
+      document.getElementById('errorMessage').innerText = "⚠️ خطأ: قد يكون الحساب موجود أو كلمة المرور ضعيفة.";
+    });
+};
+
+// نسيت كلمة المرور
+window.forgotPassword = function() {
+  const email = document.getElementById('email').value;
+  if (!email) {
+    alert('❌ الرجاء إدخال البريد الإلكتروني أولاً.');
+    return;
+  }
+  sendPasswordResetEmail(auth, email)
+    .then(() => {
+      alert('📩 تم إرسال رابط إعادة التعيين لبريدك.');
+    })
+    .catch(() => {
+      alert('⚠️ خطأ: تأكد من صحة البريد.');
+    });
+};
+</script>
+
+</body>
+</html>
